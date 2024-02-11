@@ -3,6 +3,8 @@
 SET NAME=OcbClaimAutoRepair
 SET MOD_DIR="C:\SteamLibrary\steamapps\common\7 Days To Die\Mods"
 
+call "00-CompileModule.bat"
+
 if not exist build\ (
   mkdir build
 )
