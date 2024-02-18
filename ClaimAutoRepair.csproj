@@ -47,6 +47,9 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>$(PATH_7D2D_MANAGED)\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>..\..\..\..\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+    </Reference>
     <Reference Include="LogLibrary">
       <HintPath>$(PATH_7D2D_MANAGED)\LogLibrary.dll</HintPath>
     </Reference>
