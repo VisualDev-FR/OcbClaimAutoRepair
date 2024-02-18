@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 {
@@ -115,7 +116,9 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 	public bool CanRepairBlock(Block block)
 	{
-		if (block.RepairItems == null) return false;
+		if (block.RepairItems == null)
+			return false;
+
 		for (int i = 0; i < block.RepairItems.Count; i++)
 		{
 			int needed = block.RepairItems[i].Count;
@@ -134,7 +137,9 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 	public bool TakeRepairMaterials(Block block)
 	{
-		if (block.RepairItems == null) return false;
+		if (block.RepairItems == null)
+			return false;
+
 		for (int i = 0; i < block.RepairItems.Count; i++)
 		{
 			int needed = block.RepairItems[i].Count;
@@ -147,13 +152,14 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 	public Vector3i GetRandomPos(World world, Vector3 pos, int size)
 	{
+
 		int x = 0; int y = 0; int z = 0;
 		// We don't fix ourself!
 		while (x == 0 && y == 0 && z == 0 && size != 0)
 		{
-			x = Random.Range(-size, size);
-			y = Random.Range(-size, size);
-			z = Random.Range(-size, size);
+			x = UnityEngine.Random.Range(-size, size);
+			y = UnityEngine.Random.Range(-size, size);
+			z = UnityEngine.Random.Range(-size, size);
 		}
 		return new Vector3i(
 			pos.x + x,
@@ -165,11 +171,114 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 	static Color orange = new Color(1f, 0.6f, 0f);
 
+	public List<Vector3i> get_neighbors(Vector3i pos)
+	{
+        return new List<Vector3i>
+		{
+            new Vector3i(pos.x + 1, pos.y, pos.z),
+			new Vector3i(pos.x - 1, pos.y, pos.z),
+			new Vector3i(pos.x, pos.y + 1, pos.z),
+			new Vector3i(pos.x, pos.y - 1, pos.z),
+			new Vector3i(pos.x, pos.y, pos.z + 1),
+			new Vector3i(pos.x, pos.y, pos.z - 1),
+		};
+    }
+
+	public void repair_block(BlockValue block, Vector3i pos)
+	{
+		//TODO: repair the block
+		//Log.Out($"repairing block... damage = {block.damage}, type = {block.type}, name = {block.Block.IndexName}, pos = [{pos.ToString()}]");
+	}
+
+	public bool is_block_ignored(BlockValue block)
+	{
+		return (
+			block.isair
+			|| block.isWater
+			|| block.Block.shape.IsTerrain()
+			//|| block.Block.IsDecoration
+			|| block.Block.IsPlant()
+			|| block.Block.IsTerrainDecoration
+		);
+    }
+
+	public List<Vector3i> get_blocks_to_repair(World world, Vector3i initial_pos)
+	{
+		List<Vector3i> blocks_to_repair = new List<Vector3i>();
+        List<Vector3i> neighbors = this.get_neighbors(initial_pos);
+        Dictionary<string, int> visited = new Dictionary<string, int>();
+
+		int block_limit = 100;
+
+        while (neighbors.Count > 0 && block_limit > 0)
+		{
+			block_limit--;
+
+			List<Vector3i> neighbors_temp = new List<Vector3i>(neighbors);
+			neighbors = new List<Vector3i>();
+
+			foreach(Vector3i pos in neighbors_temp)
+            {
+				BlockValue block = world.GetBlock(pos);
+
+                bool is_ignored = this.is_block_ignored(block);
+				bool is_visited = visited.ContainsKey(pos.ToString());
+
+				if (!is_visited)
+				{
+                    visited.Add(pos.ToString(), 0);
+                }
+
+				if (is_ignored || is_visited)
+				{
+					continue;
+				}
+
+				debug_block(world, pos);
+
+				if(block.damage > 0)
+				{
+					blocks_to_repair.Add(pos);
+					this.repair_block(block, pos);
+				}
+
+				neighbors.AddRange(this.get_neighbors(pos));
+            }
+        }
+
+		Log.Out($"{blocks_to_repair.Count} blocks to repair. BlockLimit = {block_limit}");
+
+        return blocks_to_repair;
+	}
+
+	public void debug_block(World world, Vector3i block_pos)
+	{
+		BlockValue block = world.GetBlock(block_pos);
+
+        Log.Out($"type: {block.type}, ignored: {Convert.ToInt32(this.is_block_ignored(block))}, pos: [{block_pos.x}, {block_pos.y}, {block_pos.z}]");
+	}
+
     public void TickRepair(World world)
 	{
-
-		Vector3i worldPosI = ToWorldPos();
+        Vector3i worldPosI = ToWorldPos();
 		Vector3 worldPos = ToWorldPos().ToVector3();
+
+		if (this.hadDamagedBlock) { return; }
+
+		List<Vector3i> blocks_to_repair = this.get_blocks_to_repair(world, worldPosI);
+		Log.Out("------------------");
+
+		this.hadDamagedBlock = false;
+
+		//      List<Vector3i> neighbors = this.get_neighbors(worldPosI);
+		//debug_block(world, neighbors[0]);
+		//      debug_block(world, neighbors[1]);
+		//      debug_block(world, neighbors[2]);
+		//      debug_block(world, neighbors[3]);
+		//      debug_block(world, neighbors[4]);
+		//      debug_block(world, neighbors[5]);
+
+		return;
 
 		// ToDo: probably don't need to recalculate on each tick since we reset on damage changes
 		damagePerc = (float)repairBlock.damage / (float)Block.list[repairBlock.type].MaxDamage;
@@ -180,6 +289,7 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 			// Get block currently at the position we try to repair
 			BlockValue currentValue = world.GetBlock(repairPosition);
+
 			// Check if any of the stats changed after we acquired to block
 			if (currentValue.type != repairBlock.type || currentValue.damage != repairBlock.damage)
 			{
@@ -504,6 +614,8 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 		int claimSize,
 		bool includeAllies)
 	{
+
+		return false;
 
 		// Vector3i worldPos = chunk.GetWorldPos();
 		// Check if block to be repaired is within a trader area?

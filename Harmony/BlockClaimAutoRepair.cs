@@ -12,17 +12,6 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 
 	private float TakeDelay = 30f;
 
-	// Copied from vanilla BlockLandClaim code
-	// public override void OnBlockEntityTransformBeforeActivated(
-	// 	WorldBase _world,
-	// 	Vector3i _blockPos,
-	// 	int _cIdx,
-	// 	BlockValue _blockValue,
-	// 	BlockEntityData _ebcd)
-	// {
-	// 	base.OnBlockEntityTransformBeforeActivated(_world, _blockPos, _cIdx, _blockValue, _ebcd);
-	// }
-
 	public override void Init()
 	{
 		base.Init();
@@ -94,11 +83,7 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 	}
 
 	// Copied from vanilla BlockLandClaim code
-	public override void OnBlockAdded(
-		WorldBase _world,
-		Chunk _chunk,
-		Vector3i _blockPos,
-		BlockValue _blockValue)
+	public override void OnBlockAdded(WorldBase _world, Chunk _chunk, Vector3i _blockPos, BlockValue _blockValue)
 	{
 		if (_blockValue.ischild || _world.GetTileEntity(_chunk.ClrIdx, _blockPos) is TileEntityClaimAutoRepair)
 			return;
@@ -155,12 +140,6 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 			LandClaimBoundsHelper.RemoveBoundsHelper(_blockPos.ToVector3());
 		}
 	}
-
-	// Copied from vanilla BlockLandClaim code
-	// public override void PlaceBlock(WorldBase _world, BlockPlacement.Result _result, EntityAlive _ea)
-	// {
-	// 	base.PlaceBlock(_world, _result, _ea);
-	// }
 
 	public override BlockActivationCommand[] GetBlockActivationCommands(
 		WorldBase _world,
