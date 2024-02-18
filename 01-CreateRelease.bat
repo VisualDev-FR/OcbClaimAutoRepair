@@ -5,6 +5,10 @@ SET MOD_DIR="C:\SteamLibrary\steamapps\common\7 Days To Die\Mods"
 
 call "00-CompileModule.bat"
 
+if NOT %ERRORLEVEL% == 0 (
+  exit /b 1
+)
+
 if not exist build\ (
   mkdir build
 )
