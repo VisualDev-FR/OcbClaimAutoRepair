@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class BlockClaimAutoRepair : BlockSecureLoot
 {
@@ -53,7 +54,7 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 	{
 		if (_ebcd == null) return;
 		if (_world.GetTileEntity(_cIdx, _blockPos) is TileEntityClaimAutoRepair te) {
-			te.repairSpeed = RepairSpeed;
+			//te.repairSpeed = RepairSpeed;
 		}
 		else {
 			Chunk chunkFromWorldPos = (Chunk) _world.GetChunkFromWorldPos(_blockPos);
@@ -62,7 +63,7 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 				localChunkPos = World.toBlock(_blockPos),
 				lootListName = lootList
 			};
-			te.repairSpeed = RepairSpeed;
+			//te.repairSpeed = RepairSpeed;
 			te.SetContainerSize(LootSize, false);
 			chunkFromWorldPos.AddTileEntity(te);
 		}
@@ -82,7 +83,7 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 			localChunkPos = World.toBlock(_blockPos),
 			lootListName = lootList
 		};
-		tileEntity.repairSpeed = RepairSpeed;
+		//tileEntity.repairSpeed = RepairSpeed;
 		tileEntity.SetContainerSize(LootSize, false);
 		_chunk.AddTileEntity(tileEntity);
 
@@ -202,7 +203,18 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 		}
 		else if (_commandName == "turn_claimautorep_off" || _commandName == "turn_claimautorep_on")
 		{
-			tileEntity.IsOn = !tileEntity.IsOn;
+			//tileEntity.IsOn = !tileEntity.IsOn;
+			Dictionary<string, int> missing_items = tileEntity.find_an_repair_damaged_blocks(_player.world);
+
+			Log.Out($"{missing_items.Count} missing items: ");
+
+			foreach (KeyValuePair<string, int> entry in missing_items)
+			{
+				string message = $"Missing materials: {Localization.Get(entry.Key)} x{entry.Value}";
+                GameManager.ShowTooltip(_player.GetAttachedPlayerLocal(), message);
+				Log.Out(message);
+			}
+
 			return true;
 		}
 		else
