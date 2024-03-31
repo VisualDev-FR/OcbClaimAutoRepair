@@ -38,6 +38,8 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 	bool hadDamagedBlock = false;
 	bool hadBlockOutside = false;
 
+	const int MAX_ITERTIONS = 1000;
+
 	private bool isOn;
 
 	public bool IsOn
@@ -58,8 +60,7 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 		}
 	}
 
-	public TileEntityClaimAutoRepair(Chunk _chunk)
-		: base(_chunk)
+	public TileEntityClaimAutoRepair(Chunk _chunk) : base(_chunk)
 	{
 		isOn = false;
 		isAccessed = false;
@@ -173,25 +174,114 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 	public List<Vector3i> get_neighbors(Vector3i pos)
 	{
-        return new List<Vector3i>
+		return new List<Vector3i>
 		{
-            new Vector3i(pos.x + 1, pos.y, pos.z),
+			new Vector3i(pos.x + 1, pos.y, pos.z),
 			new Vector3i(pos.x - 1, pos.y, pos.z),
+
 			new Vector3i(pos.x, pos.y + 1, pos.z),
 			new Vector3i(pos.x, pos.y - 1, pos.z),
+
 			new Vector3i(pos.x, pos.y, pos.z + 1),
 			new Vector3i(pos.x, pos.y, pos.z - 1),
-		};
-    }
 
-	public void repair_block(BlockValue block, Vector3i pos)
+			new Vector3i(pos.x, pos.y + 1, pos.z + 1),
+			new Vector3i(pos.x, pos.y - 1, pos.z + 1),
+			new Vector3i(pos.x, pos.y + 1, pos.z - 1),
+			new Vector3i(pos.x, pos.y - 1, pos.z - 1),
+
+			new Vector3i(pos.x + 1, pos.y, pos.z + 1),
+			new Vector3i(pos.x - 1, pos.y, pos.z + 1),
+			new Vector3i(pos.x + 1, pos.y, pos.z - 1),
+			new Vector3i(pos.x - 1, pos.y, pos.z - 1),
+
+			new Vector3i(pos.x + 1, pos.y + 1, pos.z),
+			new Vector3i(pos.x + 1, pos.y - 1, pos.z),
+			new Vector3i(pos.x - 1, pos.y + 1, pos.z),
+			new Vector3i(pos.x - 1, pos.y - 1, pos.z),
+
+			new Vector3i(pos.x + 1, pos.y + 1, pos.z + 1),
+			new Vector3i(pos.x + 1, pos.y - 1, pos.z + 1),
+			new Vector3i(pos.x + 1, pos.y + 1, pos.z - 1),
+			new Vector3i(pos.x + 1, pos.y - 1, pos.z - 1),
+
+			new Vector3i(pos.x - 1, pos.y + 1, pos.z + 1),
+			new Vector3i(pos.x - 1, pos.y - 1, pos.z + 1),
+			new Vector3i(pos.x - 1, pos.y + 1, pos.z - 1),
+			new Vector3i(pos.x - 1, pos.y - 1, pos.z - 1),
+		};
+	}
+
+	public void repair_block(World world, BlockValue block, Vector3i pos)
 	{
-		//TODO: repair the block
 		//Log.Out($"repairing block... damage = {block.damage}, type = {block.type}, name = {block.Block.IndexName}, pos = [{pos.ToString()}]");
+		if (world.GetChunkFromWorldPos(pos) is Chunk chunkFromWorldPos)
+		{
+			// Completely restore the block
+			block.damage = 0;
+
+			switch (block.Block.GetBlockName())
+			{
+				case "trapSpikesWoodDmg1":
+				case "trapSpikesWoodDmg2":
+					Log.Out(block.Block.GetBlockName() + ": " + pos.ToDebugLocation());
+
+					uint trapSpikesWoodDmg0_id = 21469;
+					block = new BlockValue(trapSpikesWoodDmg0_id);
+
+					break;
+
+				case "trapSpikesIronDmg1":
+				case "trapSpikesIronDmg2":
+					Log.Out(block.Block.GetBlockName() + ": " + pos.ToDebugLocation());
+
+					uint trapSpikesIronDmg0_id = 21476;
+					block = new BlockValue(trapSpikesIronDmg0_id);
+					break;
+
+				default:
+					break;
+			}
+
+			// Update the block at the given position (very low-level function)
+			// Note: with this function we can basically install a new block at position
+			world.SetBlock(chunkFromWorldPos.ClrIdx, pos, block, false, false);
+
+			// Take the repair materials from the container
+			// ToDo: what if materials have gone missing?
+			// TakeRepairMaterials(block.Block);
+
+			// BroadCast the changes done to the block
+			world.SetBlockRPC(
+				chunkFromWorldPos.ClrIdx,
+				pos,
+				block,
+				block.Block.Density
+			);
+
+			// Update the bound helper (maybe debounce a little?)
+			// EnableBoundHelper(repairDamage / block.damage);
+
+			// Get material to play material specific sound
+			var material = block.Block.blockMaterial.SurfaceCategory;
+			world.GetGameManager().PlaySoundAtPositionServer(
+				pos.ToVector3(), // or at `worldPos`?
+				string.Format("ImpactSurface/metalhit{0}", material),
+				AudioRolloffMode.Logarithmic, 100);
+
+			// Update clients
+			SetModified();
+		}
+		// Reset acquired block
+		ResetAcquiredBlock();
 	}
 
 	public bool is_block_ignored(BlockValue block)
 	{
+
+		if (block.damage > 0)
+			return false;
+
 		return (
 			block.isair
 			|| block.isWater
@@ -200,236 +290,256 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 			|| block.Block.IsPlant()
 			|| block.Block.IsTerrainDecoration
 		);
-    }
+	}
 
 	public List<Vector3i> get_blocks_to_repair(World world, Vector3i initial_pos)
 	{
 		List<Vector3i> blocks_to_repair = new List<Vector3i>();
-        List<Vector3i> neighbors = this.get_neighbors(initial_pos);
-        Dictionary<string, int> visited = new Dictionary<string, int>();
+		List<Vector3i> neighbors = this.get_neighbors(initial_pos);
+		Dictionary<string, int> visited = new Dictionary<string, int>();
+		Dictionary<string, int> needed_materials = new Dictionary<string, int>();
 
-		int block_limit = 100;
+		int max_iterations = MAX_ITERTIONS;
 
-        while (neighbors.Count > 0 && block_limit > 0)
+		while (neighbors.Count > 0 && max_iterations > 0)
 		{
-			block_limit--;
+			max_iterations--;
 
 			List<Vector3i> neighbors_temp = new List<Vector3i>(neighbors);
 			neighbors = new List<Vector3i>();
 
-			foreach(Vector3i pos in neighbors_temp)
-            {
+			foreach (Vector3i pos in neighbors_temp)
+			{
 				BlockValue block = world.GetBlock(pos);
 
-                bool is_ignored = this.is_block_ignored(block);
+				bool is_ignored = this.is_block_ignored(block);
 				bool is_visited = visited.ContainsKey(pos.ToString());
 
 				if (!is_visited)
-				{
-                    visited.Add(pos.ToString(), 0);
-                }
+					visited.Add(pos.ToString(), 0);
 
 				if (is_ignored || is_visited)
-				{
 					continue;
-				}
 
-				debug_block(world, pos);
+				// special case for Spike blocks
+				string block_name = block.Block.GetBlockName();
 
-				if(block.damage > 0)
+				if (block.damage > 0 || block_name.Contains("Dmg1") || block_name.Contains("Dmg2"))
 				{
 					blocks_to_repair.Add(pos);
-					this.repair_block(block, pos);
+					//this.repair_block(world, block, pos);
+
+					if (block.Block.RepairItems == null)
+						Log.Warning($"null repairItems: {block.Block.GetBlockName()}");
+
+					foreach (SItemNameCount item in block.Block.RepairItems ?? new List<SItemNameCount>())
+					{
+						if (!needed_materials.ContainsKey(item.ItemName))
+							needed_materials.Add(item.ItemName, 0);
+
+						needed_materials[item.ItemName] += item.Count;
+					}
 				}
 
 				neighbors.AddRange(this.get_neighbors(pos));
-            }
-        }
+			}
+		}
 
-		Log.Out($"{blocks_to_repair.Count} blocks to repair. BlockLimit = {block_limit}");
+		foreach (var entry in needed_materials)
+			Log.Out($"{Localization.Get(entry.Key)} x{entry.Value}");
 
-        return blocks_to_repair;
+		Log.Out($"{blocks_to_repair.Count} blocks to repair. Iterations = {MAX_ITERTIONS - max_iterations}");
+
+		return blocks_to_repair;
 	}
 
 	public void debug_block(World world, Vector3i block_pos)
 	{
 		BlockValue block = world.GetBlock(block_pos);
 
-        Log.Out($"type: {block.type}, ignored: {Convert.ToInt32(this.is_block_ignored(block))}, pos: [{block_pos.x}, {block_pos.y}, {block_pos.z}]");
+		Log.Out($"block.name .............. : {block.Block.GetBlockName()}");
+		Log.Out($"block.pos ............... : [{block_pos.x}, {block_pos.y}, {block_pos.z}]");
+		Log.Out($"block.type .............. : {block.type}");
+		Log.Out($"block.damage ............ : {block.damage}");
+		Log.Out($"block.isair ............. : {block.isair}");
+		Log.Out($"block.isWater ........... : {block.isWater}");
+		Log.Out($"block.IsDecoration ...... : {block.Block.IsDecoration}");
+		Log.Out($"block.IsTerrain ......... : {block.Block.shape.IsTerrain()}");
+		Log.Out($"block.IsPlant ........... : {block.Block.IsPlant()}");
+		Log.Out($"block.IsTerrainDecoration : {block.Block.IsTerrainDecoration}");
+		Log.Out($"block.IsDecoration ...... : {block.Block.IsDecoration}");
+		Log.Out("");
 	}
 
-    public void TickRepair(World world)
+	public void TickRepair(World world)
 	{
-        Vector3i worldPosI = ToWorldPos();
-		Vector3 worldPos = ToWorldPos().ToVector3();
+		Vector3i worldPosI = ToWorldPos();
 
-		if (this.hadDamagedBlock) { return; }
+		List<Vector3i> neighbors = get_neighbors(worldPosI);
+		debug_block(world, neighbors[0]);
+		debug_block(world, neighbors[1]);
+		debug_block(world, neighbors[2]);
+		debug_block(world, neighbors[3]);
+		debug_block(world, neighbors[4]);
+		debug_block(world, neighbors[5]);
 
-		List<Vector3i> blocks_to_repair = this.get_blocks_to_repair(world, worldPosI);
-		Log.Out("------------------");
+		List<Vector3i> blocks_to_repair = get_blocks_to_repair(world, worldPosI);
+		Log.Out("");
 
-		this.hadDamagedBlock = false;
-
-		//      List<Vector3i> neighbors = this.get_neighbors(worldPosI);
-		//debug_block(world, neighbors[0]);
-		//      debug_block(world, neighbors[1]);
-		//      debug_block(world, neighbors[2]);
-		//      debug_block(world, neighbors[3]);
-		//      debug_block(world, neighbors[4]);
-		//      debug_block(world, neighbors[5]);
+		this.isOn = false;
 
 		return;
 
-		// ToDo: probably don't need to recalculate on each tick since we reset on damage changes
-		damagePerc = (float)repairBlock.damage / (float)Block.list[repairBlock.type].MaxDamage;
+		//// ToDo: probably don't need to recalculate on each tick since we reset on damage changes
+		//damagePerc = (float)repairBlock.damage / (float)Block.list[repairBlock.type].MaxDamage;
 
-		// Check if we have a block for repair acquired
-		if (repairBlock.type != BlockValue.Air.type)
-		{
+		//// Check if we have a block for repair acquired
+		//if (repairBlock.type != BlockValue.Air.type)
+		//{
 
-			// Get block currently at the position we try to repair
-			BlockValue currentValue = world.GetBlock(repairPosition);
+		//	// Get block currently at the position we try to repair
+		//	BlockValue currentValue = world.GetBlock(repairPosition);
 
-			// Check if any of the stats changed after we acquired to block
-			if (currentValue.type != repairBlock.type || currentValue.damage != repairBlock.damage)
-			{
-				// Reset the acquired block and play a sound bit
-				// Play different sound according to reason of disconnect
-				// Block has been switched (maybe destroyed, upgraded, etc.)
-				// Block has been damaged again, abort repair on progress
-				ResetAcquiredBlock(currentValue.type != repairBlock.type ?
-					"weapon_jam" : "ItemNeedsRepair");
-				return;
-			}
+		//	// Check if any of the stats changed after we acquired to block
+		//	if (currentValue.type != repairBlock.type || currentValue.damage != repairBlock.damage)
+		//	{
+		//		// Reset the acquired block and play a sound bit
+		//		// Play different sound according to reason of disconnect
+		//		// Block has been switched (maybe destroyed, upgraded, etc.)
+		//		// Block has been damaged again, abort repair on progress
+		//		ResetAcquiredBlock(currentValue.type != repairBlock.type ?
+		//			"weapon_jam" : "ItemNeedsRepair");
+		//		return;
+		//	}
 
-			// Increase amount of repairing done
-			repairDamage += Time.deltaTime * repairSpeed;
-			// Check if repaired enough to fully restore
-			if (repairBlock.damage <= repairDamage)
-			{
-				// Safety check if materials have changed
-				if (!CanRepairBlock(Block.list[repairBlock.type]))
-				{
-					// Inventory seems to have changed (not repair possible)
-					ResetAcquiredBlock("weapon_jam");
-					return;
-				}
-				// Need to get the chunk first in order to alter the block?
-				if (world.GetChunkFromWorldPos(repairPosition) is Chunk chunkFromWorldPos)
-				{
-					// Completely restore the block
-					repairBlock.damage = 0;
-					// Update the block at the given position (very low-level function)
-					// Note: with this function we can basically install a new block at position
-					world.SetBlock(chunkFromWorldPos.ClrIdx, repairPosition, repairBlock, false, false);
-					// Take the repair materials from the container
-					// ToDo: what if materials have gone missing?
-					TakeRepairMaterials(repairBlock.Block);
-					// BroadCast the changes done to the block
-					world.SetBlockRPC(chunkFromWorldPos.ClrIdx, repairPosition,
-						repairBlock, repairBlock.Block.Density);
-					// Update the bound helper (maybe debounce a little?)
-					EnableBoundHelper(repairDamage / repairBlock.damage);
-					// Get material to play material specific sound
-					var material = repairBlock.Block.blockMaterial.SurfaceCategory;
-					world.GetGameManager().PlaySoundAtPositionServer(
-						repairPosition.ToVector3(), // or at `worldPos`?
-						string.Format("ImpactSurface/metalhit{0}", material),
-						AudioRolloffMode.Logarithmic, 100);
-					// Update clients
-					SetModified();
-				}
-				// Reset acquired block
-				ResetAcquiredBlock();
-			}
-			else
-			{
-				EnableBoundHelper(repairDamage / repairBlock.damage);
-				// Play simple click indicating we are working on something
-				world.GetGameManager().PlaySoundAtPositionServer(worldPos,
-					"repair_block", AudioRolloffMode.Logarithmic, 100);
-			}
+		//	// Increase amount of repairing done
+		//	repairDamage += Time.deltaTime * repairSpeed;
+		//	// Check if repaired enough to fully restore
+		//	if (repairBlock.damage <= repairDamage)
+		//	{
+		//		// Safety check if materials have changed
+		//		if (!CanRepairBlock(Block.list[repairBlock.type]))
+		//		{
+		//			// Inventory seems to have changed (not repair possible)
+		//			ResetAcquiredBlock("weapon_jam");
+		//			return;
+		//		}
+		//		// Need to get the chunk first in order to alter the block?
+		//		if (world.GetChunkFromWorldPos(repairPosition) is Chunk chunkFromWorldPos)
+		//		{
+		//			// Completely restore the block
+		//			repairBlock.damage = 0;
+		//			// Update the block at the given position (very low-level function)
+		//			// Note: with this function we can basically install a new block at position
+		//			world.SetBlock(chunkFromWorldPos.ClrIdx, repairPosition, repairBlock, false, false);
+		//			// Take the repair materials from the container
+		//			// ToDo: what if materials have gone missing?
+		//			TakeRepairMaterials(repairBlock.Block);
+		//			// BroadCast the changes done to the block
+		//			world.SetBlockRPC(chunkFromWorldPos.ClrIdx, repairPosition,
+		//				repairBlock, repairBlock.Block.Density);
+		//			// Update the bound helper (maybe debounce a little?)
+		//			EnableBoundHelper(repairDamage / repairBlock.damage);
+		//			// Get material to play material specific sound
+		//			var material = repairBlock.Block.blockMaterial.SurfaceCategory;
+		//			world.GetGameManager().PlaySoundAtPositionServer(
+		//				repairPosition.ToVector3(), // or at `worldPos`?
+		//				string.Format("ImpactSurface/metalhit{0}", material),
+		//				AudioRolloffMode.Logarithmic, 100);
+		//			// Update clients
+		//			SetModified();
+		//		}
+		//		// Reset acquired block
+		//		ResetAcquiredBlock();
+		//	}
+		//	else
+		//	{
+		//		EnableBoundHelper(repairDamage / repairBlock.damage);
+		//		// Play simple click indicating we are working on something
+		//		world.GetGameManager().PlaySoundAtPositionServer(worldPos,
+		//			"repair_block", AudioRolloffMode.Logarithmic, 100);
+		//	}
 
-		}
-		else
-		{
+		//}
+		//else
+		//{
 
-			// Get size of land claim blocks to look for valid blocks to repair
-			int claimSize = (GameStats.GetInt(EnumGameStats.LandClaimSize) - 1) / 2;
+		//	// Get size of land claim blocks to look for valid blocks to repair
+		//	int claimSize = (GameStats.GetInt(EnumGameStats.LandClaimSize) - 1) / 2;
 
-			// Check if block is within a land claim block (don't repair stuff outside)
-			// ToDo: Not sure if this is the best way to check this, but it should work
-			PersistentPlayerList persistentPlayerList = world.GetGameManager().GetPersistentPlayerList();
-			PersistentPlayerData playerData = persistentPlayerList.GetPlayerData(this.GetOwner());
+		//	// Check if block is within a land claim block (don't repair stuff outside)
+		//	// ToDo: Not sure if this is the best way to check this, but it should work
+		//	PersistentPlayerList persistentPlayerList = world.GetGameManager().GetPersistentPlayerList();
+		//	PersistentPlayerData playerData = persistentPlayerList.GetPlayerData(this.GetOwner());
 
-			// Speed up finding of blocks (for easier debugging purpose only!)
-			// int n = 0; while (++n < 500 && repairBlock.type == BlockValue.Air.type)
+		//	// Speed up finding of blocks (for easier debugging purpose only!)
+		//	// int n = 0; while (++n < 500 && repairBlock.type == BlockValue.Air.type)
 
-			// Simple and crude random block acquiring
-			// Repair block has slightly further reach
-			for (int i = 1; i <= claimSize + 5; i += 1)
-			{
+		//	// Simple and crude random block acquiring
+		//	// Repair block has slightly further reach
+		//	for (int i = 1; i <= claimSize + 5; i += 1)
+		//	{
 
-				// Get a random block and see if it need repair
-				Vector3i randomPos = GetRandomPos(world, worldPos, i);
-				BlockValue blockValue = world.GetBlock(randomPos);
+		//		// Get a random block and see if it need repair
+		//		Vector3i randomPos = GetRandomPos(world, worldPos, i);
+		//		BlockValue blockValue = world.GetBlock(randomPos);
 
-				damagePerc = (float)(blockValue.damage) / (float)(Block.list[blockValue.type].MaxDamage);
+		//		damagePerc = (float)(blockValue.damage) / (float)(Block.list[blockValue.type].MaxDamage);
 
-				// Check if block needs repair and if we have the needed materials
-				if (blockValue.damage > 0)
-				{
-					if (CanRepairBlock(blockValue.Block))
-					{
-						// int deadZone = GameStats.GetInt(EnumGameStats.LandClaimDeadZone) + claimSize;
-						Chunk chunkFromWorldPos = (Chunk)world.GetChunkFromWorldPos(worldPosI);
-						if (!IsBlockInsideClaim(world, chunkFromWorldPos, randomPos, playerData, claimSize, true))
-						{
-							// Check if the block is close by, which suggests a missing land claim block?
-							if (Mathf.Abs(randomPos.x - worldPos.x) < claimSize / 2) hadBlockOutside = true;
-							else if (Mathf.Abs(randomPos.y - worldPos.y) < claimSize / 2) hadBlockOutside = true;
-							else if (Mathf.Abs(randomPos.z - worldPos.z) < claimSize / 2) hadBlockOutside = true;
-							// Skip it
-							continue;
-						}
-						// Play simple click indicating we are working on something
-						world.GetGameManager().PlaySoundAtPositionServer(worldPos,
-							"timer_stop", AudioRolloffMode.Logarithmic, 100);
-						// Acquire the block to repair
-						repairPosition = randomPos;
-						repairBlock = blockValue;
-						repairDamage = 0.0f;
-						hadDamagedBlock = false;
-						hadBlockOutside = false;
-						EnableBoundHelper(0);
-						SetModified();
-						return;
-					}
-					else if (blockValue.Block?.RepairItems?.Count > 0)
-					{
-						hadDamagedBlock = true;
-					}
-				}
-			}
+		//		// Check if block needs repair and if we have the needed materials
+		//		if (blockValue.damage > 0)
+		//		{
+		//			if (CanRepairBlock(blockValue.Block))
+		//			{
+		//				// int deadZone = GameStats.GetInt(EnumGameStats.LandClaimDeadZone) + claimSize;
+		//				Chunk chunkFromWorldPos = (Chunk)world.GetChunkFromWorldPos(worldPosI);
+		//				if (!IsBlockInsideClaim(world, chunkFromWorldPos, randomPos, playerData, claimSize, true))
+		//				{
+		//					// Check if the block is close by, which suggests a missing land claim block?
+		//					if (Mathf.Abs(randomPos.x - worldPos.x) < claimSize / 2) hadBlockOutside = true;
+		//					else if (Mathf.Abs(randomPos.y - worldPos.y) < claimSize / 2) hadBlockOutside = true;
+		//					else if (Mathf.Abs(randomPos.z - worldPos.z) < claimSize / 2) hadBlockOutside = true;
+		//					// Skip it
+		//					continue;
+		//				}
+		//				// Play simple click indicating we are working on something
+		//				world.GetGameManager().PlaySoundAtPositionServer(worldPos,
+		//					"timer_stop", AudioRolloffMode.Logarithmic, 100);
+		//				// Acquire the block to repair
+		//				repairPosition = randomPos;
+		//				repairBlock = blockValue;
+		//				repairDamage = 0.0f;
+		//				hadDamagedBlock = false;
+		//				hadBlockOutside = false;
+		//				EnableBoundHelper(0);
+		//				SetModified();
+		//				return;
+		//			}
+		//			else if (blockValue.Block?.RepairItems?.Count > 0)
+		//			{
+		//				hadDamagedBlock = true;
+		//			}
+		//		}
+		//	}
 
-			if (hadBlockOutside)
-			{
-				lastMissingItem = "keystoneBlock";
-				ResetBoundHelper(Color.red);
-				SetModified();
-			}
-			else if (hadDamagedBlock)
-			{
-				ResetBoundHelper(orange);
-				SetModified();
-			}
-			else if (repairPosition == worldPos)
-			{
-				ResetBoundHelper(Color.gray);
-				SetModified();
-			}
+		//	if (hadBlockOutside)
+		//	{
+		//		lastMissingItem = "keystoneBlock";
+		//		ResetBoundHelper(Color.red);
+		//		SetModified();
+		//	}
+		//	else if (hadDamagedBlock)
+		//	{
+		//		ResetBoundHelper(orange);
+		//		SetModified();
+		//	}
+		//	else if (repairPosition == worldPos)
+		//	{
+		//		ResetBoundHelper(Color.gray);
+		//		SetModified();
+		//	}
 
-		}
+		//}
 	}
 
 	public override void read(PooledBinaryReader _br, TileEntity.StreamModeRead _eStreamMode)
@@ -581,13 +691,17 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 	public void EnableBoundHelper(float progress = 0)
 	{
 		if (BoundsHelper == null) return;
-		BoundsHelper.localPosition = repairPosition.ToVector3() -
-			Origin.position + new Vector3(0.5f, 0.5f, 0.5f);
+
+		BoundsHelper.localPosition = repairPosition.ToVector3() - Origin.position + new Vector3(0.5f, 0.5f, 0.5f);
 		BoundsHelper.gameObject.SetActive(this.isOn);
+
 		Color color = Color.yellow * (1f - progress) + Color.green * progress;
+
 		if (lastColor == color) return;
+
 		foreach (Renderer componentsInChild in BoundsHelper.GetComponentsInChildren<Renderer>())
 			componentsInChild.material.SetColor("_Color", color * 0.5f);
+
 		lastColor = color;
 	}
 

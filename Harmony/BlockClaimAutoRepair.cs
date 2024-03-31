@@ -44,18 +44,6 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 	}
 
 	// Copied from vanilla BlockLandClaim code
-	// public override void OnBlockValueChanged(
-	// 	WorldBase _world,
-	// 	Chunk _chunk,
-	// 	int _clrIdx,
-	// 	Vector3i _blockPos,
-	// 	BlockValue _oldBlockValue,
-	// 	BlockValue _newBlockValue)
-	// {
-	// 	base.OnBlockValueChanged(_world, _chunk, _clrIdx, _blockPos, _oldBlockValue, _newBlockValue);
-	// }
-
-	// Copied from vanilla BlockLandClaim code
 	public override void OnBlockEntityTransformAfterActivated(
 		WorldBase _world,
 		Vector3i _blockPos,
@@ -155,12 +143,16 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 
 		string cmd = tileEntity.IsOn ? "turn_claimautorep_off" : "turn_claimautorep_on";
 		cmds[cmds.Length - 1] = new BlockActivationCommand(cmd, "electric_switch", true);
+
 		if (this.CanPickup)
 			cmds[cmds.Length - 2].enabled = true;
-		else if ((double) EffectManager.GetValue(PassiveEffects.BlockPickup, _entity: _entityFocusing, tags: _blockValue.Block.Tags) > 0.0)
+
+		else if ((double)EffectManager.GetValue(PassiveEffects.BlockPickup, _entity: _entityFocusing, tags: _blockValue.Block.Tags) > 0.0)
 			cmds[cmds.Length - 2].enabled = true;
-		else 
+
+		else
 			cmds[cmds.Length - 2].enabled = false;
+
 		return cmds;
 	}
 
@@ -172,30 +164,38 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 		BlockValue _blockValue,
 		EntityAlive _player)
 	{
-		if (!(_world.GetTileEntity(_cIdx, _blockPos) is TileEntityClaimAutoRepair tileEntity)) return false;
+		if (!(_world.GetTileEntity(_cIdx, _blockPos) is TileEntityClaimAutoRepair tileEntity))
+			return false;
+
 		if (_commandName == "take")
 		{
 			// Copied from vanilla Block::OnBlockActivated
 			bool flag = this.CanPickup;
-			if ((double) EffectManager.GetValue(PassiveEffects.BlockPickup, _entity: _player, tags: _blockValue.Block.Tags) > 0.0)
-			flag = true;
-			if (!flag) return false;
+			if ((double)EffectManager.GetValue(PassiveEffects.BlockPickup, _entity: _player, tags: _blockValue.Block.Tags) > 0.0)
+				flag = true;
+
+			if (!flag)
+				return false;
+
 			if (!_world.CanPickupBlockAt(_blockPos, _world.GetGameManager().GetPersistentLocalPlayer()))
 			{
 				_player.PlayOneShot("keystone_impact_overlay");
 				return false;
 			}
+
 			if (_blockValue.damage > 0)
 			{
 				GameManager.ShowTooltip(_player as EntityPlayerLocal, Localization.Get("ttRepairBeforePickup"), "ui_denied");
 				return false;
 			}
+
 			ItemStack itemStack = Block.list[_blockValue.type].OnBlockPickedUp(_world, _cIdx, _blockPos, _blockValue, _player.entityId);
 			if (!_player.inventory.CanTakeItem(itemStack) && !_player.bag.CanTakeItem(itemStack))
 			{
 				GameManager.ShowTooltip(_player as EntityPlayerLocal, Localization.Get("xuiInventoryFullForPickup"), "ui_denied");
 				return false;
 			}
+			
 			TakeItemWithTimer(_cIdx, _blockPos, _blockValue, _player);
 			return false;
 
@@ -205,7 +205,8 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 			tileEntity.IsOn = !tileEntity.IsOn;
 			return true;
 		}
-		else {
+		else
+		{
 			return base.OnBlockActivated(_commandName, _world, _cIdx, _blockPos, _blockValue, _player);
 		}
 	}
@@ -277,8 +278,10 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 				LocalPlayerUI uiForPlayer = LocalPlayerUI.GetUIForPlayer(entityPlayerLocal);
 				HandleTakeInternalItems(tileEntity, uiForPlayer);
 				ItemStack itemStack = new ItemStack(block.ToItemValue(), 1);
+
 				if (!uiForPlayer.xui.PlayerInventory.AddItem(itemStack))
-				uiForPlayer.xui.PlayerInventory.DropItem(itemStack);
+					uiForPlayer.xui.PlayerInventory.DropItem(itemStack);
+
 				world.SetBlockRPC(_clrIdx, vector3i, BlockValue.Air);
 			}
 		}
@@ -289,8 +292,8 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 		ItemStack[] items = te.items;
 		for (int index = 0; index < items.Length; ++index)
 		{
-		if (!items[index].IsEmpty() && !playerUI.xui.PlayerInventory.AddItem(items[index]))
-			playerUI.xui.PlayerInventory.DropItem(items[index]);
+			if (!items[index].IsEmpty() && !playerUI.xui.PlayerInventory.AddItem(items[index]))
+				playerUI.xui.PlayerInventory.DropItem(items[index]);
 		}
 	}
 
