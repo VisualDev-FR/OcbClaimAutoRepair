@@ -1,3 +1,8 @@
+# Usefull links
+
+[Adventures of a newbie modder](https://community.7daystodie.com/topic/13847-the-adventures-of-a-newbie-modder/)
+
+
 # OCB Claim Auto Repair Mod - 7 Days to Die (A21) Addon
 
 A new block that will automatically repair damaged blocks within your claim.

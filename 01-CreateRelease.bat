@@ -46,4 +46,5 @@ if exist %MOD_DIR%\%NAME% (
   rd %MOD_DIR%\%NAME% /S /Q
 )
 
+echo moving archive to mod folder
 move build\%NAME% %MOD_DIR%\%NAME%

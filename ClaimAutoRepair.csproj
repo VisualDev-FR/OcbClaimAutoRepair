@@ -82,10 +82,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Harmony\BlockClaimAutoRepair.cs" />
-    <Compile Include="Harmony\OcbClaimAutoRepair.cs" />
-    <Compile Include="Harmony\TileEntityClaimAutoRepair.cs" />
-    <Compile Include="Harmony\AssemblyInfo.cs" />
+    <Compile Include="src\Harmony\BlockClaimAutoRepair.cs" />
+    <Compile Include="src\Harmony\OcbClaimAutoRepair.cs" />
+    <Compile Include="src\Harmony\TileEntityClaimAutoRepair.cs" />
+    <Compile Include="src\Harmony\AssemblyInfo.cs" />
     <Compile Include="Library\ModXmlPatcher.cs" />
   </ItemGroup>
   <ItemGroup>

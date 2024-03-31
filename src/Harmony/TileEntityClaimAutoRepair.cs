@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using static Block;
 
 public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 {
