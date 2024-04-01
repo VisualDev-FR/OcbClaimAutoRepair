@@ -1,7 +1,6 @@
 @echo off
 
-SET NAME=OcbClaimAutoRepair
-SET MOD_DIR="C:\SteamLibrary\steamapps\common\7 Days To Die\Mods"
+SET NAME="OcbClaimAutoRepair"
 
 call "00-CompileModule.bat"
 
@@ -14,6 +13,7 @@ if not exist build\ (
 )
 
 if exist build\%NAME%\ (
+  echo
   echo remove existing directory
   rmdir build\%NAME% /S /Q
 )
@@ -26,6 +26,7 @@ if not "%1"=="" (
   SET VERSION=%1
 )
 
+echo:
 echo create %VERSION%
 
 xcopy *.dll build\%NAME%\
@@ -36,15 +37,21 @@ xcopy Resources build\%NAME%\Resources\ /S
 xcopy UIAtlases build\%NAME%\UIAtlases\ /S
 
 cd build
+
+echo:
 echo Packaging %NAME%-%VERSION%.zip
 powershell Compress-Archive %NAME% %NAME%-%VERSION%.zip -Force
 cd ..
 
 SET RV=%ERRORLEVEL%
+SET MOD_PATH="%PATH_7D2D%"\Mods
+SET DEST=%MOD_PATH%\%NAME%
 
-if exist %MOD_DIR%\%NAME% (
-  rd %MOD_DIR%\%NAME% /S /Q
+if exist %DEST% (
+  rd %DEST% /S /Q
 )
 
-echo moving archive to mod folder
-move build\%NAME% %MOD_DIR%\%NAME%
+
+echo:
+echo moving archive to mod folder to %DEST%
+move build\%NAME% %DEST%
