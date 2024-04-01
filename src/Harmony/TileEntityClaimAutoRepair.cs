@@ -114,7 +114,7 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 		return needed_item_count;
 	}
 
-	public Dictionary<string, int> TakeRepairMaterials(List<SItemNameCount> repair_items)
+	public Dictionary<string, int> TakeRepairMaterials(float damages_perc, List<SItemNameCount> repair_items)
 	{
 		if (repair_items == null)
 			return null;
@@ -123,9 +123,12 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
         foreach (SItemNameCount item in repair_items)
         {
-			int missing_item_count = ReduceItemCount(item.ItemName, item.Count);
+			int required_item_count = (int) Mathf.Ceil(item.Count * damages_perc);
+			int missing_item_count = ReduceItemCount(item.ItemName, required_item_count);
 
-			if (missing_item_count > 0)
+			Log.Out($"{item.ItemName}: required_material={required_item_count} (={item.Count} * {damages_perc:F3})");
+
+            if (missing_item_count > 0)
 				missing_materials.Add(item.ItemName, missing_item_count);
         }
 
@@ -179,30 +182,23 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 
 		float total_required = 0.0f;
 		float total_missing = 0.0f;
+		float damage_perc = (float)block.damage / block.Block.MaxDamage;
 
 		foreach(SItemNameCount item in block.Block.RepairItems)
 		{
-			total_required += item.Count;
+			total_required += Mathf.Ceil(item.Count * damage_perc);
 
-			if (!missing_materials.ContainsKey(item.ItemName))
+            if (!missing_materials.ContainsKey(item.ItemName))
 				continue;
 
 			total_missing += missing_materials[item.ItemName];
 		}
 
-		Log.Out(block.Block.GetBlockName());
-        Log.Out($"total_required: {total_required}");
-
-        // total_required: 8
-        // Computed damage: 0, block.damage: 0, total_required: 8, total_missing: 8");
-
-        // prevents divisonByZero errors
-        total_required = Math.Max(total_required, 1);
+        Log.Out($"{block.Block.GetBlockName()}.total_required: {total_required}");
 
 		int computed_damages = (int)Mathf.Ceil(block.damage * total_missing / total_required);
 
-		Log.Out($"Computed damage: {computed_damages}, block.damage: {block.damage}, total_required: {total_required}, total_missing: {total_missing}");
-		Log.Out("");
+		Log.Out($"Computed damage: {computed_damages}, = {block.damage} * {total_missing} / {total_required}");
 
 		return computed_damages;
 	}
@@ -213,16 +209,13 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
         BlockValue block = world.GetBlock(pos);
         Dictionary<string, int> missing_items = null;
 
-		Log.Out($"block.damage: {block.damage}");
-        Log.Out($"block.Block.damage: {block.Block.Damage}");
-
         // TODO: what is the purpose of this condition ?
         if (world.GetChunkFromWorldPos(pos) is Chunk chunkFromWorldPos)
 		{
 
             // TODO: find a better way to compute the needed repair_items for spike blocks
-            // (for now, the upgrade from Dmg1/Dmg2 to Dmg0 is free)
-            List<SItemNameCount> repair_items = block.Block.RepairItems; ;
+            // (for now, if a spike is at stage Dmg1 or Dmg2 with damage=0, the upgrade to Dmg0 is free)
+            List<SItemNameCount> repair_items = block.Block.RepairItems;
 
             const uint trapSpikesWoodDmg0_id = 21469;
             const uint trapSpikesIronDmg0_id = 21476;
@@ -245,11 +238,15 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
                     break;
 			}
 
+            float damage_perc = (float)block.damage / block.Block.MaxDamage;
+
             // Take the repair materials from the container
-			if (NEEDS_MATERIAL)
-				missing_items = TakeRepairMaterials(repair_items);
+            if (NEEDS_MATERIAL)
+				missing_items = TakeRepairMaterials(damage_perc, repair_items);
 
             block.damage = compute_damage(block, missing_items);
+
+            Log.Out("");
 
             // Update the block at the given position (very low-level function)
             // Note: with this function we can basically install a new block at position
@@ -266,9 +263,10 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 			// Get material to play material specific sound
 			var material = block.Block.blockMaterial.SurfaceCategory;
 			world.GetGameManager().PlaySoundAtPositionServer(
-				pos.ToVector3(), // or at `worldPos`?
+				pos.ToVector3(),
 				string.Format("ImpactSurface/metalhit{0}", material),
-				AudioRolloffMode.Logarithmic, 100);
+				AudioRolloffMode.Logarithmic, 100
+			);
 
 			// Update clients
 			SetModified();
@@ -545,8 +543,8 @@ public class TileEntityClaimAutoRepair : TileEntitySecureLootContainer
 					lastMissingItem = null;
 				}
 
-				ResetAcquiredBlock("weapon_jam", false);
-				SetModified(); // Force update
+                //ResetAcquiredBlock("weapon_jam", false);
+                SetModified(); // Force update
 			}
 		}
 	}
