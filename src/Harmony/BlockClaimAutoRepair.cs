@@ -211,7 +211,13 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 			foreach (KeyValuePair<string, int> entry in missing_items)
 			{
 				string message = $"Missing materials: {Localization.Get(entry.Key)} x{entry.Value}";
-                GameManager.ShowTooltip(_player.GetAttachedPlayerLocal(), message);
+
+				int item_type = ItemClass.GetItem(entry.Key).type;
+
+                // TODO: find a better way to diplay missing items to the client
+                EntityPlayerLocal local_player = _player as EntityPlayerLocal;
+                local_player.AddUIHarvestingItem(itemStack: new ItemStack(new ItemValue(item_type), -entry.Value), true);
+
 				Log.Out(message);
 			}
 
