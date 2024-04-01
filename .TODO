@@ -1,0 +1,22 @@
+# edited with TODO+, see https://marketplace.visualstudio.com/items?itemName=fabiospampinato.vscode-todo-plus
+
+UI:
+    ☐ setup UI into the TileEntity
+        ☐ on/off button
+        ☐ dynamic ratio of needed materials / available materials (with refresh button ?)
+        ☐ show active cooldown || time to repair all
+
+To be implemented (or not ?):
+    ☐ Cooldown: a period of time during which no repair can be launched
+    ☐ RepairSpeed: an amount of damage which can be repaired in one UpdateTick event
+    ☐ Better UI inside the loot container
+    ☐ electricity needed to launch a repair ?
+    ☐ if electricity needed -> increase repair speed according to max received power
+
+To be fixed:
+    ☐ Spike blocks at stage Dmg1 or Dmg2 with block.damage = 0 are upgraded for free at stage Dmg0
+
+Config:
+    ☐ import `COOLDOWN` duration from config.xml
+    ☐ import `MAX_ITERTIONS` for bfs from config.xml
+    ☐ import `NEEDS_MATERIAL` on/off from config.xml
