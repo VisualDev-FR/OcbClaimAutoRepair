@@ -12,6 +12,7 @@ To be implemented (or not ?):
     ☐ Better UI inside the loot container
     ☐ electricity needed to launch a repair ?
     ☐ if electricity needed -> increase repair speed according to max received power
+    ☐ make block ignoring in bfs more generic, by specifying explicit blocks to ignore.
 
 To be fixed:
     ☐ Spike blocks at stage Dmg1 or Dmg2 with block.damage = 0 are upgraded for free at stage Dmg0
@@ -20,3 +21,4 @@ Config:
     ☐ import `COOLDOWN` duration from config.xml
     ☐ import `MAX_ITERTIONS` for bfs from config.xml
     ☐ import `NEEDS_MATERIAL` on/off from config.xml
+    ☐ import `IGNORED_BLOCKS` from config.xml

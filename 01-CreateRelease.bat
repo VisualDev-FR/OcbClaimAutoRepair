@@ -44,8 +44,8 @@ powershell Compress-Archive %NAME% %NAME%-%VERSION%.zip -Force
 cd ..
 
 SET RV=%ERRORLEVEL%
-SET MOD_PATH="%PATH_7D2D%"\Mods
-SET DEST=%MOD_PATH%\%NAME%
+SET MOD_PATH=%PATH_7D2D%\Mods
+SET DEST="%MOD_PATH%\%NAME%"
 
 if exist %DEST% (
   rd %DEST% /S /Q
@@ -53,5 +53,5 @@ if exist %DEST% (
 
 
 echo:
-echo moving archive to mod folder to %DEST%
+echo moving archive to mod folder to: %DEST%
 move build\%NAME% %DEST%
