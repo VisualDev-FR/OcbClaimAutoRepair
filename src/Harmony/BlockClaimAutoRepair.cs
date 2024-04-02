@@ -9,18 +9,16 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 
 	private float BoundHelperSize = 2.59f;
 
-	private float RepairSpeed = 2000f;
+	private float TakeDelay = 2f;
 
-	private float TakeDelay = 30f;
-
-	public override void Init()
-	{
-		base.Init();
-		TakeDelay = !Properties.Values.ContainsKey("TakeDelay") ? TakeDelay
-			: StringParsers.ParseFloat(Properties.Values["TakeDelay"]);
-		RepairSpeed = !Properties.Values.ContainsKey("ClaimAutoRepairSpeedFactor") ? RepairSpeed
-			: StringParsers.ParseFloat(Properties.Values["ClaimAutoRepairSpeedFactor"]);
-	}
+	// public override void Init()
+	// {
+	// 	base.Init();
+	// 	TakeDelay = !Properties.Values.ContainsKey("TakeDelay") ? TakeDelay
+	// 		: StringParsers.ParseFloat(Properties.Values["TakeDelay"]);
+	// 	RepairSpeed = !Properties.Values.ContainsKey("ClaimAutoRepairSpeedFactor") ? RepairSpeed
+	// 		: StringParsers.ParseFloat(Properties.Values["ClaimAutoRepairSpeedFactor"]);
+	// }
 
 	// Copied from vanilla BlockLandClaim code
 	public override void OnBlockLoaded(
@@ -33,14 +31,14 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 		if (GameManager.IsDedicatedServer) return;
 		if (_world.GetTileEntity(_clrIdx, _blockPos) is TileEntityClaimAutoRepair tileEntityLandAutoRepair)
 		{
-			Transform boundsHelper = LandClaimBoundsHelper.GetBoundsHelper(_blockPos.ToVector3());
-			if (boundsHelper != null)
-			{
-				boundsHelper.localScale = new Vector3(BoundHelperSize, BoundHelperSize, BoundHelperSize);
-				boundsHelper.localPosition = new Vector3(_blockPos.x + 0.5f, _blockPos.y + 0.5f, _blockPos.z + 0.5f);
-				tileEntityLandAutoRepair.BoundsHelper = boundsHelper;
-				tileEntityLandAutoRepair.ResetBoundHelper(Color.gray);
-			}
+			//Transform boundsHelper = LandClaimBoundsHelper.GetBoundsHelper(_blockPos.ToVector3());
+			//if (boundsHelper != null)
+			//{
+			//	boundsHelper.localScale = new Vector3(BoundHelperSize, BoundHelperSize, BoundHelperSize);
+			//	boundsHelper.localPosition = new Vector3(_blockPos.x + 0.5f, _blockPos.y + 0.5f, _blockPos.z + 0.5f);
+			//	tileEntityLandAutoRepair.BoundsHelper = boundsHelper;
+			//	tileEntityLandAutoRepair.ResetBoundHelper(Color.gray);
+			//}
 		}
 	}
 
@@ -83,7 +81,7 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 			localChunkPos = World.toBlock(_blockPos),
 			lootListName = lootList
 		};
-		//tileEntity.repairSpeed = RepairSpeed;
+
 		tileEntity.SetContainerSize(LootSize, false);
 		_chunk.AddTileEntity(tileEntity);
 
@@ -91,14 +89,14 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 		if (GameManager.IsDedicatedServer) return;
 		if (_world.GetTileEntity(_chunk.ClrIdx, _blockPos) is TileEntityClaimAutoRepair tileEntityLandAutoRepair)
 		{
-			Transform boundsHelper = LandClaimBoundsHelper.GetBoundsHelper(_blockPos.ToVector3());
-			if (boundsHelper != null)
-			{
-				boundsHelper.localScale = new Vector3(BoundHelperSize, BoundHelperSize, BoundHelperSize);
-				boundsHelper.localPosition = new Vector3(_blockPos.x + 0.5f, _blockPos.y + 0.5f, _blockPos.z + 0.5f);
-				tileEntityLandAutoRepair.BoundsHelper = boundsHelper;
-				tileEntityLandAutoRepair.ResetBoundHelper(Color.gray);
-			}
+			//Transform boundsHelper = LandClaimBoundsHelper.GetBoundsHelper(_blockPos.ToVector3());
+			//if (boundsHelper != null)
+			//{
+			//	boundsHelper.localScale = new Vector3(BoundHelperSize, BoundHelperSize, BoundHelperSize);
+			//	boundsHelper.localPosition = new Vector3(_blockPos.x + 0.5f, _blockPos.y + 0.5f, _blockPos.z + 0.5f);
+			//	tileEntityLandAutoRepair.BoundsHelper = boundsHelper;
+			//	tileEntityLandAutoRepair.ResetBoundHelper(Color.gray);
+			//}
 		}
 	}
 
@@ -214,9 +212,9 @@ public class BlockClaimAutoRepair : BlockSecureLoot
 
 				int item_type = ItemClass.GetItem(entry.Key).type;
 
-                // TODO: find a better way to diplay missing items to the client
-                EntityPlayerLocal local_player = _player as EntityPlayerLocal;
-                local_player.AddUIHarvestingItem(itemStack: new ItemStack(new ItemValue(item_type), -entry.Value), true);
+				// TODO: find a better way to diplay missing items to the client
+				EntityPlayerLocal local_player = _player as EntityPlayerLocal;
+				local_player.AddUIHarvestingItem(itemStack: new ItemStack(new ItemValue(item_type), -entry.Value), true);
 
 				Log.Out(message);
 			}
